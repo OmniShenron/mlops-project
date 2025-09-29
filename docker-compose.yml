@@ -1,0 +1,98 @@
+services:
+  traefik:
+    image: traefik:v2.11
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--log.level=INFO"
+    ports:
+      - "80:80"
+      - "8081:8081"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - mlops
+
+  postgres:
+    image: postgres:15
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: mlflow
+      POSTGRES_PASSWORD: mlflow
+      POSTGRES_DB: mlflow
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - mlops
+
+  mlflow:
+    build:
+      context: ./mlflow
+    container_name: mlflow_tracking
+    ports:
+      - "5000:5000"
+    environment:
+      BACKEND_STORE_URI: postgresql://mlflow:mlflow@postgres:5432/mlflow
+      ARTIFACT_ROOT: /mlflow-artifacts
+    volumes:
+      - mlflow-artifacts:/mlflow-artifacts
+    depends_on:
+      - postgres
+    networks:
+      - mlops
+
+  trainer:
+    build:
+      context: ./trainer
+    container_name: trainer
+    volumes:
+      - ./trainer:/app/trainer
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    depends_on:
+      - mlflow
+    networks:
+      - mlops
+
+  serve:
+    build:
+      context: ./serve
+    container_name: serve
+    ports:
+      - "8000:8000"
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    depends_on:
+      - mlflow
+    networks:
+      - mlops
+
+  jenkins:
+    build:
+      context: ./jenkins
+    container_name: jenkins
+    privileged: true
+    user: root
+    environment:
+      - TZ=Asia/Kolkata
+    volumes:
+      - ./jenkins-data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./Jenkinsfile:/var/jenkins_home/Jenkinsfile:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jenkins.rule=Host(`omnishenron.duckdns.org`)"
+      - "traefik.http.routers.jenkins.entrypoints=web"
+    networks:
+      - mlops
+
+volumes:
+  postgres-data:
+  mlflow-artifacts:
+  jenkins-data:
+
+networks:
+  mlops:
+
