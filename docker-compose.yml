@@ -85,6 +85,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.jenkins.rule=Host(`omnishenron.duckdns.org`)"
       - "traefik.http.routers.jenkins.entrypoints=web"
+      - "traefik.http.services.jenkins.loadbalancer.server.port=8080"
     networks:
       - mlops
 
