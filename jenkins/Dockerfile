@@ -5,7 +5,11 @@ ENV JAVA_OPTS -Djenkins.install.runSetupWizard=false
 
 # Copy plugins.txt
 COPY plugins.txt /usr/share/jenkins/ref/plugins.txt
-
+USER root
+RUN apt-get update && \
+    apt-get install -y docker.io && \
+    apt-get clean
+USER jenkins
 # Install plugins first
 RUN jenkins-plugin-cli --plugin-file /usr/share/jenkins/ref/plugins.txt
 
