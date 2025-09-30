@@ -1,20 +1,4 @@
 services:
-  traefik:
-    image: traefik:v2.11
-    container_name: traefik
-    command:
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--entrypoints.web.address=:80"
-      - "--log.level=INFO"
-    ports:
-      - "80:80"
-      - "8081:8081"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - mlops
-
   postgres:
     image: postgres:15
     container_name: postgres_db
@@ -73,6 +57,8 @@ services:
     build:
       context: ./jenkins
     container_name: jenkins
+    ports:
+      - "8080:8080"
     privileged: true
     user: root
     environment:
@@ -81,14 +67,18 @@ services:
       - ./jenkins-data:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
       - ./Jenkinsfile:/var/jenkins_home/Jenkinsfile:ro
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.jenkins.rule=Host(`omnishenron.duckdns.org`)"
-      - "traefik.http.routers.jenkins.entrypoints=web"
-      - "traefik.http.services.jenkins.loadbalancer.server.port=8080"
     networks:
       - mlops
-
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: ngrok
+    command: http --log stdout --log-level debug jenkins:8080
+    environment:
+      NGROK_AUTHTOKEN: 1QCAV7PHqw3P1QdvuD7xuzGgJbl_32dq1vREX9h2fruQMWLrZ
+    depends_on:
+      - jenkins
+    networks:
+      - mlops
 volumes:
   postgres-data:
   mlflow-artifacts:
